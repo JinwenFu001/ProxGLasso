@@ -1,0 +1,56 @@
+#' Self-Concordant Proximal Gradient Method for Graphical Lasso
+#'
+#' This function uses local Lipschitz constant to search for direction and step size in proximal gradient method and solve for inverse covariance matrix
+#' @param S Sample covariance matrix
+#' @param n Sample size
+#' @param lambda Penalty parameter
+#' @param warm.start Bool indicator for whether to do warm start for estimation
+#' @param init.Omega Initial value for inverse covariance matrix, only needed when warm.start=TRUE
+#' @return Estimated inverse covariance matrix
+#' @export
+SCProx_glasso=function(S,n,lambda,warm.start=F,init.Omega=NULL){
+  p=nrow(S)
+  if(warm.start&&(!is.null(init.Omega))){
+    Omega0=Omega1=init.Omega
+  }else{
+    Omega0=Omega1=diag(p)
+  }
+  mu1=5
+  dis=1
+  thresh=1e-8
+  iter=0
+  max.iter=1e5
+  objval=1
+
+  derivative.f=function(Omega.inv){
+    return(S-Omega.inv)
+  }
+
+  obj_eval=function(S,Omega,lambda){
+    return(sum(S*Omega)-log(det(Omega))+lambda*sum(abs(Omega-diag(diag(Omega)))))
+  }
+
+  while ((dis>thresh)&&(iter<=max.iter)) {
+    iter=iter+1
+    Linv=solve(chol(Omega0))
+    Omega0.inv=Linv%*%t(Linv)
+    mu1=2/sum(Omega0.inv^2)
+    alpha=1.01
+    iter0=0
+    while(alpha>1){
+      iter0=iter0+1
+      d=soft_thresh(Omega0-mu1*derivative.f(Omega0.inv),mu1*lambda)-Omega0
+      beta=(sum(d^2))/mu1
+
+      lamt=sqrt(sum((Omega0.inv%*%d)^2))
+
+      alpha=beta/lamt/(lamt+beta)
+      mu1=mu1*2
+    }
+    Omega1=Omega0+alpha*d
+    dis=abs(objval-obj_eval(S,Omega1,lambda))/abs(objval)
+    objval=obj_eval(S,Omega1,lambda)
+    Omega0=Omega1
+  }
+  return(Omega1)
+}
