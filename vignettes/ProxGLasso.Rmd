@@ -1,0 +1,107 @@
+---
+title: "Proximal Gradient Methods for GLASSO in R"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Proximal Gradient Methods for GLASSO in R}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+## Introduction
+  
+This vignette introduces the motivation and usage of this package.  
+  
+## Problem Overview
+  
+This package is using proximal gradient methods to solve graphical LASSO problem where we're interested in estimating a sparse inverse covariance matrix. Below gives the problem setting and basics about proximal gradient methods.  
+  
+### GLASSO Problem Setting
+  
+In Gaussian graphical model, we are interested in the second order conditional dependence structure between variables. Specifically, we assume we have n data points with p dimensions:
+$$X_{i=1,\cdots,n}\sim N(\mu_{p\times1},\Omega^{-1}_{p\times p}),$$  
+And we hope to estimate the inverse covariance matrix $\Omega_{p\times p}$ whose nonzero $ij$-th element denotes the existence of conditional dependence between the $i$-th and $j$-th variables. We estimate the matrix by solving the following optimization problem:  
+$$\Omega^*=\arg\min\limits_{\Omega\in S_p^{++}}\{-\log\det(\Omega)+tr(S\Omega)+\rho||\Omega^-||_1\},$$
+Where $S=\frac{1}{n}\sum\limits_{i=1}^n (X_i-\bar{X_n})(X_i-\bar{X_n})^T$ is the sample covariance matrix and $||\Omega^-||_1=\sum\limits_{i\ne j}|\Omega_{ij}|$ is the element-wise $l_1$ penalty on the inverse covariance matrix.  
+The conventional solution to this problem is to decompose it into p consecutive LASSO regression problem and solve each with cyclic coordinate descent method. Intrinsically, it is equivalent to solve $p^2/2$ univariate optimization problems consecutively. Though the solution is considered the fastest method to solve the problem, it has several drawbacks: It is slow in naive implementation because of nested loops; It converges slowly and is unstable in boundary situation where the penalty parameter is small; Most importantly, it is generally not able to be extended to problems with similar but more complex form of objective function. Therefore, we consider to improve it with proximal gradient methods.  
+  
+### Basics of Proximal Gradient Methods
+  
+Proximal Gradient method is a recent method designed for solving convex non-smooth optimization problems. The typically objective function consists of two parts:  
+$$\min\limits_{x\in R^d} f(x)+g(x),$$
+where $f(x)$ is assumed to be differentiable, and $g(x)$ is possibly non-smooth. The algorithm is in an iterative manner, in which the $k+1$-th update is made by:
+$$x_{k+1}=\text{prox}_{\lambda g}(x_k-\nabla f(x_k)).$$
+The proximal operator $\text{prox}_{\lambda g}(x_0)=\arg\min\limits_x\{g(x)+\frac{1}{2\lambda}||x-x_0||^2\}$ can be viewed as a gradient descent step for a smooth version of $g(x)$ with step size $\lambda$.  
+If we directly implement the naive version of proximal gradient method to our graphical LASSO problem, the objective function decomposition would be:
+$$\begin{align} 
+f(\Omega)&=-\log\det(\Omega)+\text{tr}(S\Omega)\\
+g(\Omega)&=\rho||\Omega^-||_1,
+\end{align}$$
+so in the $k+1$-th update: $\Omega_{k+1}=\text{prox}_{\rho g}(\Omega_k-\rho(S-\Omega_k^{-1}))=\text{soft.threshold}(\Omega_k-\rho(S-\Omega_k)^{-1})$.  
+While the gradient method is usually fast and convenient to implement, the theoretical and practical convergence rely deeply on the assumption that $f(x)$ is Lipschitz differentiable, meaning that there exists a constant $L$ such that $||\nabla f(x)-\nabla f(y)||\le L||x-y||$ for any $x,y$ in the domain of $f(\cdot)$. In this case, choosing fixed step size $\lambda\in (0,1/L]$ guarantees the global convergence of algorithm. However, the assumption doesn't always hold for all objective functions, especially in our context of graphical models, where we often have the log determinant term contained in objective function. This packages is seeking to solve this problem.  
+  
+## Using the ProxGLasso Package
+  
+This section demonstrates how to use the main functions provided by the `ProxGLasso` package.  
+  
+```{r}
+library(ProxGLasso)
+
+```
+
+  
+### Generate Samples With AR1 Covariance Structure
+  
+Function `Generate_AR1_pair` generates sample with given size and dimension. The generated samples have either the covariance or inverse covariance structure as AR1 model, and the other as tridiagonal matrix.  
+```{r}
+n=10
+p=5
+set.seed(42)
+samples=Generate_AR1_pair(n,p,rho=0.7,cov_AR1 = TRUE)
+print(samples)
+```  
+  
+### Naive Proximal Gradient GLASSO with Back Tracking Line Search
+  
+Function `BTProx_glasso` implements naive proximal gradient method, but search for the step size in each iteration using the back tracking strategy.  
+  
+```{r}
+#calculate the sample covariance matrix
+S=cov(samples$X)/n*(n-1)
+# Specify the sample covariance matrix, sample size, and penalty parameter
+BT_est=BTProx_glasso(S,n,lambda = 0.1)
+# It returns the estimated inverse covariance matrix
+print(BT_est)
+```
+  
+### Self-Concordant Proximal Gradient Method
+  
+It is found that even though the smooth part $f(x)$ of the objective function is not Lipschitz differentiable, the global convergence can still be guaranteed with modified proximal gradient method, as long as $f(x)$ is self-concordant:
+$$f(x)\text{ is said to be self-concordant with parameter M if } |\phi'''(t)|\le M\phi''(t)^{3/2},\text{ where }\phi(t)=f(x+tv)\text{ for all }t\in R\text{ and }x+tv\in\text{dom}(f)$$
+The modified proximal gradient method is implemented as `SCProx_glasso` in this package.  
+  
+```{r}
+SC_est=SCProx_glasso(S,n,lambda = 0.1)
+#it also returns the estimated inverse covariance matrix
+print(SC_est)
+```
+  
+### (Self-Concordant) Proximal Newton Method
+  
+Still under the assumption that the smooth part $f(x)$ is self-concordant. we are able to guarantee the global convergence with modified proximal Newton method, who utilizes Hessian matrix to get a better approximation in each iteration. In terms of implemention, we can either choose to solve primal or dual problem of the same optimization problem in each iteration. Both the primal and dual solution are implemented in this package, with functions `Newton_Prox_primal_glasso` and `Newton_Prox_dual_glasso` respectively.  
+  
+```{r}
+#primal solution
+SC_Newton_pri_est=Newton_Prox_primal_glasso(S,n,lambda = 0.1)
+print(SC_Newton_pri_est)
+#dual solution
+SC_Newton_dual_est=Newton_Prox_dual_glasso(S,n,lambda = 0.1)
+print(SC_Newton_dual_est)
+```
+  
+## References
+  
+$\bullet$ Tran-Dinh Q, Kyrillidis A, Cevher V. Composite self-concordant minimization[J]. J. Mach. Learn. Res., 2015, 16(1): 371-416.  
+$\bullet$ Parikh N, Boyd S. Proximal algorithms[J]. Foundations and trends® in Optimization, 2014, 1(3): 127-239.  
+$\bullet$ Friedman, J., Hastie, T. and Tibshirani, R., (2008). Sparse inverse covariance estimation with the graphical lasso. Biostatistics, 9(3), pp.432-441.  
+$\bullet$ Beck A, Teboulle M. A fast iterative shrinkage-thresholding algorithm for linear inverse problems[J]. SIAM journal on imaging sciences, 2009, 2(1): 183-202.  
+$\bullet$ Chen J, Shimmura R, Suzuki J. Efficient proximal gradient algorithms for joint graphical lasso[J]. Entropy, 2021, 23(12): 1623.  

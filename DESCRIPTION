@@ -2,9 +2,17 @@ Package: ProxGLasso
 Title: Graphical LASSO Using Modified Proximal Gradient Method
 Version: 0.0.0.9000
 Authors@R: 
-    person("Jinwen", "Fu",  "fu000217@umn.edu", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
+    person(given="Jinwen", family="Fu",  email="fu000217@umn.edu", role = c("aut", "cre"))
+Description: This package implements several modified Proximal Gradient for solve Graphical LASSO problem, each guarantees the global convergence.
 License: GPL-3
 Encoding: UTF-8
+Imports:
+    SimDesign
+Depends:
+    R (>= 3.5.0)
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.2.3
+Suggests: 
+    knitr,
+    rmarkdown
+VignetteBuilder: knitr

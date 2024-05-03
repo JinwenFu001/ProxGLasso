@@ -4,7 +4,7 @@
 \alias{SCProx_glasso}
 \title{Self-Concordant Proximal Gradient Method for Graphical Lasso}
 \usage{
-SCProx_glasso(S, n, lambda, warm.start = F, init.Omega = NULL)
+SCProx_glasso(S, n, lambda, warm.start = FALSE, init.Omega = NULL)
 }
 \arguments{
 \item{S}{Sample covariance matrix}
@@ -22,4 +22,12 @@ Estimated inverse covariance matrix
 }
 \description{
 This function uses local Lipschitz constant to search for direction and step size in proximal gradient method and solve for inverse covariance matrix
+}
+\examples{
+n=10
+p=5
+set.seed(42)
+samples=Generate_AR1_pair(n,p,rho=0.7,cov_AR1 = TRUE)
+S=cov(samples$X)/n*(n-1)
+SC_est=SCProx_glasso(S,n,lambda = 0.1)
 }

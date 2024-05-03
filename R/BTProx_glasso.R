@@ -7,8 +7,15 @@
 #' @param warm.start Bool indicator for whether to do warm start for estimation
 #' @param init.Omega Initial value for inverse covariance matrix, only needed when warm.start=TRUE
 #' @return Estimated inverse covariance matrix
+#' @examples
+#' n=10
+#' p=5
+#' set.seed(42)
+#' samples=Generate_AR1_pair(n,p,rho=0.7,cov_AR1 = TRUE)
+#' S=cov(samples$X)/n*(n-1)
+#' BT_est=BTProx_glasso(S,n,lambda = 0.1)
 #' @export
-BTProx_glasso=function(S,n,lambda,warm.start=F,init.Omega=NULL){
+BTProx_glasso=function(S,n,lambda,warm.start=FALSE,init.Omega=NULL){
   p=nrow(S)
   S.eigen.max=eigen(S)$values[1]
   if(warm.start&&(!is.null(init.Omega))){
