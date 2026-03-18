@@ -1,4 +1,3 @@
-~~~md
 # ProxGLasso
 
 `ProxGLasso` is an R package for sparse inverse covariance estimation in Gaussian graphical models. It focuses on the graphical lasso problem and provides proximal optimization methods for estimating a sparse precision matrix.
@@ -13,14 +12,11 @@ You can install the development version from GitHub with:
 install.packages("remotes")
 remotes::install_github("JinwenFu001/ProxGLasso")
 ```
-~~~
 
 Then load the package with:
 
 ~~~r
-```r
 library(ProxGLasso)
-```
 ~~~
 
 ## Problem overview
