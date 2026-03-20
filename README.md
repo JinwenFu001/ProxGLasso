@@ -10,7 +10,7 @@ You can install the development version from GitHub with:
 
 ```r
 install.packages("remotes")
-remotes::install_github("JinwenFu001/ProxGLasso")
+remotes::install_github("JinwenFu001/ProxGLasso", build_vignettes = TRUE)
 ```
 
 Then load the package with:
